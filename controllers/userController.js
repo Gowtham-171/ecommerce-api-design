@@ -1,4 +1,4 @@
-const { User } = require("../models");
+const { User } = require("../dao/models");
 
 exports.createUser = async (req, res) => {
     const data = await User.create(req.body);

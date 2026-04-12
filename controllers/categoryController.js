@@ -1,4 +1,4 @@
-const { Category } = require("../models");
+const { Category } = require("../dao/models");
 
 exports.createCategory = async (req, res) => {
     try {

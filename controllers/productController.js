@@ -1,4 +1,4 @@
-const { Product, Category } = require("../models");
+const { Product, Category } = require("../dao/models");
 
 exports.createProduct = async (req, res) => {
     const data = await Product.create(req.body);
