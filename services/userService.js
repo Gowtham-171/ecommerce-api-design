@@ -1,10 +1,15 @@
 const { User } = require("../dao/models");
 const bcrypt = require("bcrypt");
+
 const SALT_ROUNDS = 10;
+
+const removePassword = (user) => {
+  const { password, ...userData } = user.toJSON();
+  return userData;
+};
 
 
 exports.createUser = async (data) => {
-
   if (!data) {
     throw new Error("Request body required");
   }
@@ -15,25 +20,28 @@ exports.createUser = async (data) => {
     throw new Error("name, email, password required");
   }
 
+  if (password.length < 6) {
+    throw new Error("password must be at least 6 characters");
+  }
+
   const exist = await User.findOne({ where: { email } });
+
   if (exist) {
     throw new Error("email already exists");
   }
 
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-  return await User.create({
-    name,
-    email,
-    password: hashedPassword
-  });
+  const user = await User.create({ name, email, password: hashedPassword });
+
+  return removePassword(user);
 };
 
 
 exports.getUsers = async () => {
-  return await User.findAll({
-    attributes: { exclude: ["password"] }
-  });
+  const users = await User.findAll();
+
+  return users.map(user => removePassword(user));
 };
 
 
@@ -42,32 +50,33 @@ exports.getUserById = async (id) => {
     throw new Error("Invalid user id");
   }
 
-  const user = await User.findByPk(id, {
-    attributes: { exclude: ["password"] }
-  });
+  const user = await User.findByPk(id);
 
   if (!user) {
     throw new Error("User not found");
   }
 
-  return user;
+  return removePassword(user);
 };
 
 
 exports.updateUser = async (id, data) => {
-
   if (!id || isNaN(id)) {
     throw new Error("Invalid user id");
   }
 
   if (!data || Object.keys(data).length === 0) {
-    throw new Error("Request body required for update");
+    throw new Error("Request body required");
   }
 
   const { name, email, password } = data;
 
   if (!name || !email || !password) {
-    throw new Error("name, email, password required for full update");
+    throw new Error("name, email, password required");
+  }
+
+  if (password.length < 6) {
+    throw new Error("password must be at least 6 characters");
   }
 
   const user = await User.findByPk(id);
@@ -76,35 +85,21 @@ exports.updateUser = async (id, data) => {
     throw new Error("User not found");
   }
 
-  const exist = await User.findOne({
-    where: { email }
-  });
-
-  if (exist && exist.id != id) {
-    throw new Error("email already exists");
-  }
-
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-  await User.update(
-    { name, email, password: hashedPassword },
-    { where: { id } }
-  );
+  await user.update({ name, email, password: hashedPassword });
 
-  return await User.findByPk(id, {
-    attributes: { exclude: ["password"] }
-  });
+  return removePassword(user);
 };
 
 
 exports.patchUser = async (id, data) => {
-
   if (!id || isNaN(id)) {
     throw new Error("Invalid user id");
   }
 
   if (!data || Object.keys(data).length === 0) {
-    throw new Error("At least one field required for patch update");
+    throw new Error("Request body required");
   }
 
   const user = await User.findByPk(id);
@@ -113,43 +108,32 @@ exports.patchUser = async (id, data) => {
     throw new Error("User not found");
   }
 
-  if (data.email) {
-    const exist = await User.findOne({ where: { email: data.email } });
-
-    if (exist && exist.id != id) {
-      throw new Error("email already exists");
-    }
+  if (data.password && data.password.length < 6) {
+    throw new Error("password must be at least 6 characters");
   }
 
   if (data.password) {
     data.password = await bcrypt.hash(data.password, SALT_ROUNDS);
   }
 
-  await User.update(data, {
-    where: { id }
-  });
+  await user.update(data);
 
-  return await User.findByPk(id, {
-    attributes: { exclude: ["password"] }
-  });
+  return removePassword(user);
 };
 
 
 exports.deleteUser = async (id) => {
-
   if (!id || isNaN(id)) {
     throw new Error("Invalid user id");
   }
 
-  const deleted = await User.destroy({
-    where: { id }
-  });
+  const user = await User.findByPk(id);
 
-  if (!deleted) {
+  if (!user) {
     throw new Error("User not found");
   }
 
-  return {
-    message: "User deleted successfully"
-  };
+  await user.destroy();
+
+  return true;
 };

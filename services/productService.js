@@ -2,15 +2,14 @@ const { Product } = require("../dao/models");
 
 
 exports.createProduct = async (data) => {
-
     if (!data) {
         throw new Error("Request body required");
     }
 
-    const { name, price, description, stock, category_id } = data;
+    const { name, price, description, stock } = data;
 
-    if (!name || !price || !stock || !category_id) {
-        throw new Error("name, price, stock, category_id required");
+    if (!name || !price || !stock) {
+        throw new Error("name, price, stock");
     }
 
     if (price <= 0) {
@@ -22,11 +21,7 @@ exports.createProduct = async (data) => {
     }
 
     return await Product.create({
-        name,
-        price,
-        description,
-        stock,
-        category_id
+        name, price, description, stock
     });
 };
 
@@ -37,7 +32,6 @@ exports.getProducts = async () => {
 
 
 exports.getProductById = async (id) => {
-
     if (!id || isNaN(id)) {
         throw new Error("Invalid product id");
     }
@@ -53,7 +47,6 @@ exports.getProductById = async (id) => {
 
 
 exports.updateProduct = async (id, data) => {
-
     if (!id || isNaN(id)) {
         throw new Error("Invalid product id");
     }
@@ -62,10 +55,10 @@ exports.updateProduct = async (id, data) => {
         throw new Error("Request body required for update");
     }
 
-    const { name, price, description, stock, category_id } = data;
+    const { name, price, description, stock } = data;
 
-    if (!name || !price || !stock || !category_id) {
-        throw new Error("name, price, stock, category_id required for full update");
+    if (!name || !price || !stock ) {
+        throw new Error("name, price, stock required for full update");
     }
 
     if (price <= 0) {
@@ -83,7 +76,7 @@ exports.updateProduct = async (id, data) => {
     }
 
     await Product.update(
-        { name, price, description, stock, category_id },
+        { name, price, description, stock},
         { where: { id } }
     );
 
@@ -92,7 +85,6 @@ exports.updateProduct = async (id, data) => {
 
 
 exports.patchProduct = async (id, data) => {
-
     if (!id || isNaN(id)) {
         throw new Error("Invalid product id");
     }
@@ -124,20 +116,17 @@ exports.patchProduct = async (id, data) => {
 
 
 exports.deleteProduct = async (id) => {
-
     if (!id || isNaN(id)) {
         throw new Error("Invalid product id");
     }
 
-    const deleted = await Product.destroy({
-        where: { id }
-    });
+    const product = await Product.findByPk(id);
 
-    if (!deleted) {
+    if (!product) {
         throw new Error("Product not found");
     }
 
-    return {
-        message: "Product deleted successfully"
-    };
+    await product.destroy();
+
+    return true;
 };

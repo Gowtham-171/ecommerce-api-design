@@ -22,9 +22,6 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.FLOAT,
       allowNull: false,
       validate: {
-        notNull: {
-          msg: "Price is required"
-        },
         isFloat: {
           msg: "Price must be a number"
         },
@@ -44,9 +41,6 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       validate: {
-        notNull: {
-          msg: "Stock is required"
-        },
         isInt: {
           msg: "Stock must be integer"
         },
@@ -56,35 +50,7 @@ module.exports = (sequelize, DataTypes) => {
         }
       }
     },
-
-    category_id: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      validate: {
-        notNull: {
-          msg: "Category id is required"
-        },
-        isInt: {
-          msg: "Category id must be integer"
-        }
-      }
-    }
-
   });
-
-  Product.associate = (models) => {
-
-    Product.belongsTo(models.Category, {
-      foreignKey: "category_id",
-      as: "category"
-    });
-
-    Product.hasMany(models.Order, {
-      foreignKey: "product_id",
-      as: "orders"
-    });
-
-  };
 
   return Product;
 };
