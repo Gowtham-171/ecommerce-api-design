@@ -1,11 +1,23 @@
 const { Product } = require("../dao/models");
 
+const sanitizeProduct = (product) => {
+    if (!product) return null;
+
+    const { createdAt, updatedAt, ...productData } = product.toJSON();
+    return productData;
+};
+
+
 const validateId = (id) => {
-    const parsed = Number(id);
-    if (!id || !Number.isInteger(parsed) || parsed <= 0) {
+    const parsedId = Number(id);
+
+    if (!Number.isInteger(parsedId) || parsedId <= 0) {
         throw new Error("Invalid product id");
     }
+
+    return parsedId;
 };
+
 
 const validateProductData = (data, isPatch = false) => {
     if (!data || Object.keys(data).length === 0) {
@@ -14,42 +26,60 @@ const validateProductData = (data, isPatch = false) => {
 
     const { name, price, stock } = data;
 
-    if (!isPatch && (!name || price === undefined || stock === undefined)) {
+    const trimmedName = name?.trim();
+    const parsedPrice = price !== undefined ? Number(price) : undefined;
+    const parsedStock = stock !== undefined ? Number(stock) : undefined;
+
+    if (!isPatch && (!trimmedName || parsedPrice === undefined || parsedStock === undefined)) {
         throw new Error("name, price, stock are required");
     }
 
     if (name !== undefined) {
-        if (name.trim().length < 2 || name.trim().length > 45) {
+        if (!trimmedName || trimmedName.length < 2 || trimmedName.length > 45) {
             throw new Error("Name must be between 2 and 45 characters");
         }
     }
 
     if (price !== undefined) {
-        const parsedPrice = Number(price);
+        if (String(price).trim() === "") {
+            throw new Error("Price is required");
+        }
 
         if (!Number.isFinite(parsedPrice)) {
             throw new Error("Price must be a number");
         }
+
         if (parsedPrice <= 0) {
             throw new Error("Price must be greater than 0");
         }
     }
 
     if (stock !== undefined) {
-        const parsedStock = Number(stock);
+        if (String(stock).trim() === "") {
+            throw new Error("Stock is required");
+        }
+
+        if (!Number.isFinite(parsedStock)) {
+            throw new Error("Stock must be a number");
+        }
+
         if (!Number.isInteger(parsedStock)) {
             throw new Error("Stock must be an integer");
         }
+
         if (parsedStock < 0) {
             throw new Error("Stock cannot be negative");
         }
     }
+
+    return { name: trimmedName, price: parsedPrice, stock: parsedStock, description: data.description };
 };
+
 
 const buildUpdatePayload = (data) => {
     const payload = {};
 
-    if (data.name !== undefined) payload.name = data.name.trim();
+    if (data.name !== undefined) payload.name = data.name;
     if (data.price !== undefined) payload.price = data.price;
     if (data.description !== undefined) payload.description = data.description;
     if (data.stock !== undefined) payload.stock = data.stock;
@@ -59,23 +89,33 @@ const buildUpdatePayload = (data) => {
 
 
 exports.createProduct = async (data) => {
-    validateProductData(data);
+    const cleaned = validateProductData(data);
 
-    const { name, price, description, stock } = data;
+    const product = await Product.create({
+        name: cleaned.name,
+        price: cleaned.price,
+        description: cleaned.description,
+        stock: cleaned.stock
+    });
 
-    return await Product.create({ name: name.trim(), price, description, stock });
+    return sanitizeProduct(product);
 };
 
 
 exports.getProducts = async () => {
-    return await Product.findAll();
+    return await Product.findAll({
+        attributes: { exclude: ["createdAt", "updatedAt"] }
+    });
 };
 
 
 exports.getProductById = async (id) => {
-    validateId(id);
+    const parsedId = validateId(id);
 
-    const product = await Product.findByPk(id);
+    const product = await Product.findByPk(parsedId, {
+        attributes: { exclude: ["createdAt", "updatedAt"] }
+    });
+
     if (!product) throw new Error("Product not found");
 
     return product;
@@ -83,37 +123,39 @@ exports.getProductById = async (id) => {
 
 
 exports.updateProduct = async (id, data) => {
-    validateId(id);
-    validateProductData(data);
+    const parsedId = validateId(id);
 
-    const product = await Product.findByPk(id);
+    const cleaned = validateProductData(data);
+
+    const product = await Product.findByPk(parsedId);
     if (!product) throw new Error("Product not found");
 
-    const payload = buildUpdatePayload(data);
+    const payload = buildUpdatePayload(cleaned);
     await product.update(payload);
 
-    return product;
+    return sanitizeProduct(product);
 };
 
 
 exports.patchProduct = async (id, data) => {
-    validateId(id);
-    validateProductData(data, true);
+    const parsedId = validateId(id);
 
-    const product = await Product.findByPk(id);
+    const cleaned = validateProductData(data, true);
+
+    const product = await Product.findByPk(parsedId);
     if (!product) throw new Error("Product not found");
 
-    const payload = buildUpdatePayload(data);
+    const payload = buildUpdatePayload(cleaned);
     await product.update(payload);
 
-    return product;
+    return sanitizeProduct(product);
 };
 
 
 exports.deleteProduct = async (id) => {
-    validateId(id);
+    const parsedId = validateId(id);
 
-    const product = await Product.findByPk(id);
+    const product = await Product.findByPk(parsedId);
     if (!product) throw new Error("Product not found");
 
     await product.destroy();
