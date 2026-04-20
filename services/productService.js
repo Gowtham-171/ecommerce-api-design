@@ -1,28 +1,69 @@
 const { Product } = require("../dao/models");
 
+const validateId = (id) => {
+    const parsed = Number(id);
+    if (!id || !Number.isInteger(parsed) || parsed <= 0) {
+        throw new Error("Invalid product id");
+    }
+};
 
-exports.createProduct = async (data) => {
-    if (!data) {
+const validateProductData = (data, isPatch = false) => {
+    if (!data || Object.keys(data).length === 0) {
         throw new Error("Request body required");
     }
 
+    const { name, price, stock } = data;
+
+    if (!isPatch && (!name || price === undefined || stock === undefined)) {
+        throw new Error("name, price, stock are required");
+    }
+
+    if (name !== undefined) {
+        if (name.trim().length < 2 || name.trim().length > 45) {
+            throw new Error("Name must be between 2 and 45 characters");
+        }
+    }
+
+    if (price !== undefined) {
+        const parsedPrice = Number(price);
+
+        if (!Number.isFinite(parsedPrice)) {
+            throw new Error("Price must be a number");
+        }
+        if (parsedPrice <= 0) {
+            throw new Error("Price must be greater than 0");
+        }
+    }
+
+    if (stock !== undefined) {
+        const parsedStock = Number(stock);
+        if (!Number.isInteger(parsedStock)) {
+            throw new Error("Stock must be an integer");
+        }
+        if (parsedStock < 0) {
+            throw new Error("Stock cannot be negative");
+        }
+    }
+};
+
+const buildUpdatePayload = (data) => {
+    const payload = {};
+
+    if (data.name !== undefined) payload.name = data.name.trim();
+    if (data.price !== undefined) payload.price = data.price;
+    if (data.description !== undefined) payload.description = data.description;
+    if (data.stock !== undefined) payload.stock = data.stock;
+
+    return payload;
+};
+
+
+exports.createProduct = async (data) => {
+    validateProductData(data);
+
     const { name, price, description, stock } = data;
 
-    if (!name || !price || !stock) {
-        throw new Error("name, price, stock");
-    }
-
-    if (price <= 0) {
-        throw new Error("price must be greater than 0");
-    }
-
-    if (stock < 0) {
-        throw new Error("stock cannot be negative");
-    }
-
-    return await Product.create({
-        name, price, description, stock
-    });
+    return await Product.create({ name: name.trim(), price, description, stock });
 };
 
 
@@ -32,99 +73,48 @@ exports.getProducts = async () => {
 
 
 exports.getProductById = async (id) => {
-    if (!id || isNaN(id)) {
-        throw new Error("Invalid product id");
-    }
+    validateId(id);
 
     const product = await Product.findByPk(id);
-
-    if (!product) {
-        throw new Error("Product not found");
-    }
+    if (!product) throw new Error("Product not found");
 
     return product;
 };
 
 
 exports.updateProduct = async (id, data) => {
-    if (!id || isNaN(id)) {
-        throw new Error("Invalid product id");
-    }
-
-    if (!data || Object.keys(data).length === 0) {
-        throw new Error("Request body required for update");
-    }
-
-    const { name, price, description, stock } = data;
-
-    if (!name || !price || !stock ) {
-        throw new Error("name, price, stock required for full update");
-    }
-
-    if (price <= 0) {
-        throw new Error("price must be greater than 0");
-    }
-
-    if (stock < 0) {
-        throw new Error("stock cannot be negative");
-    }
+    validateId(id);
+    validateProductData(data);
 
     const product = await Product.findByPk(id);
+    if (!product) throw new Error("Product not found");
 
-    if (!product) {
-        throw new Error("Product not found");
-    }
+    const payload = buildUpdatePayload(data);
+    await product.update(payload);
 
-    await Product.update(
-        { name, price, description, stock},
-        { where: { id } }
-    );
-
-    return await Product.findByPk(id);
+    return product;
 };
 
 
 exports.patchProduct = async (id, data) => {
-    if (!id || isNaN(id)) {
-        throw new Error("Invalid product id");
-    }
-
-    if (!data || Object.keys(data).length === 0) {
-        throw new Error("At least one field required for patch update");
-    }
-
-    if (data.price && data.price <= 0) {
-        throw new Error("price must be greater than 0");
-    }
-
-    if (data.stock && data.stock < 0) {
-        throw new Error("stock cannot be negative");
-    }
+    validateId(id);
+    validateProductData(data, true);
 
     const product = await Product.findByPk(id);
+    if (!product) throw new Error("Product not found");
 
-    if (!product) {
-        throw new Error("Product not found");
-    }
+    const payload = buildUpdatePayload(data);
+    await product.update(payload);
 
-    await Product.update(data, {
-        where: { id }
-    });
-
-    return await Product.findByPk(id);
+    return product;
 };
 
 
 exports.deleteProduct = async (id) => {
-    if (!id || isNaN(id)) {
-        throw new Error("Invalid product id");
-    }
+    validateId(id);
 
     const product = await Product.findByPk(id);
-
-    if (!product) {
-        throw new Error("Product not found");
-    }
+    if (!product) throw new Error("Product not found");
 
     await product.destroy();
 

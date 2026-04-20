@@ -5,31 +5,13 @@ module.exports = (sequelize, DataTypes) => {
   const Product = sequelize.define('Product', {
 
     name: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      validate: {
-        notEmpty: {
-          msg: "Product name is required"
-        },
-        len: {
-          args: [2, 100],
-          msg: "Product name must be between 2 and 100 characters"
-        }
-      }
+      type: DataTypes.STRING(50),
+      allowNull: false
     },
 
     price: {
-      type: DataTypes.FLOAT,
-      allowNull: false,
-      validate: {
-        isFloat: {
-          msg: "Price must be a number"
-        },
-        min: {
-          args: [0.01],
-          msg: "Price must be greater than 0"
-        }
-      }
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false
     },
 
     description: {
@@ -39,17 +21,9 @@ module.exports = (sequelize, DataTypes) => {
 
     stock: {
       type: DataTypes.INTEGER,
-      allowNull: false,
-      validate: {
-        isInt: {
-          msg: "Stock must be integer"
-        },
-        min: {
-          args: [0],
-          msg: "Stock cannot be negative"
-        }
-      }
-    },
+      allowNull: false
+    }
+
   });
 
   return Product;

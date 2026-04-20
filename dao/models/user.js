@@ -5,50 +5,24 @@ module.exports = (sequelize, DataTypes) => {
   const User = sequelize.define('User', {
 
     name: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      validate: {
-        notEmpty: {
-          msg: "Name is required"
-        },
-        len: {
-          args: [3, 50],
-          msg: "Name must be between 3 and 50 characters"
-        }
-      }
+      type: DataTypes.STRING(50),
+      allowNull: false
     },
 
     email: {
-      type: DataTypes.STRING,
+      type: DataTypes.STRING(100),
       allowNull: false,
       unique: {
         msg: "Email already exists"
-      },
-      validate: {
-        notEmpty: {
-          msg: "Email is required"
-        },
-        isEmail: {
-          msg: "Invalid email format"
-        }
       }
     },
 
     password: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      validate: {
-        notEmpty: {
-          msg: "Password is required"
-        },
-        len: {
-          args: [6, 100],
-          msg: "Password must be at least 6 characters"
-        }
-      }
+      type: DataTypes.STRING(255),
+      allowNull: false
     }
 
   });
-  
+
   return User;
-};
+}

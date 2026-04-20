@@ -8,31 +8,82 @@ const removePassword = (user) => {
   return userData;
 };
 
+const validateId = (id) => {
+  const parsed = Number(id);
+  if (!id || !Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error("Invalid user id");
+  }
+};
 
-exports.createUser = async (data) => {
-  if (!data) {
+const validateUserData = (data, isPatch = false) => {
+  if (!data || Object.keys(data).length === 0) {
     throw new Error("Request body required");
   }
 
   const { name, email, password } = data;
 
-  if (!name || !email || !password) {
-    throw new Error("name, email, password required");
+  if (!isPatch && (!name || !email || !password)) {
+    throw new Error("name, email, password are required");
   }
 
-  if (password.length < 6) {
-    throw new Error("password must be at least 6 characters");
+  if (name !== undefined) {
+    if (name.trim().length < 3 || name.trim().length > 45) {
+      throw new Error("Name must be between 3 and 45 characters");
+    }
   }
 
-  const exist = await User.findOne({ where: { email } });
-
-  if (exist) {
-    throw new Error("email already exists");
+  if (email !== undefined) {
+    if (email.trim().length > 100) {
+      throw new Error("Email too long");
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      throw new Error("Invalid email format");
+    }
   }
+
+  if (password !== undefined) {
+    if (password.length < 6 || password.length > 128) {
+      throw new Error("Password must be between 6 and 128 characters");
+    }
+  }
+};
+
+const checkEmailExists = async (email, userId = null) => {
+  if (!email) return;
+
+  const existing = await User.findOne({ where: { email: email.trim() } });
+
+  if (existing && existing.id !== userId) {
+    throw new Error("Email already exists");
+  }
+};
+
+const buildUpdatePayload = async (data) => {
+  const payload = {};
+
+  if (data.name !== undefined) payload.name = data.name.trim();
+  if (data.email !== undefined) payload.email = data.email.trim();
+  if (data.password !== undefined) payload.password = await bcrypt.hash(data.password, SALT_ROUNDS);
+
+  return payload;
+};
+
+
+exports.createUser = async (data) => {
+  validateUserData(data);
+
+  const { name, email, password } = data;
+
+  await checkEmailExists(email);
 
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-  const user = await User.create({ name, email, password: hashedPassword });
+  const user = await User.create({
+    name: name.trim(),
+    email: email.trim(),
+    password: hashedPassword,
+  });
 
   return removePassword(user);
 };
@@ -40,98 +91,57 @@ exports.createUser = async (data) => {
 
 exports.getUsers = async () => {
   const users = await User.findAll();
-
-  return users.map(user => removePassword(user));
+  return users.map(removePassword);
 };
 
 
 exports.getUserById = async (id) => {
-  if (!id || isNaN(id)) {
-    throw new Error("Invalid user id");
-  }
+  validateId(id);
 
   const user = await User.findByPk(id);
-
-  if (!user) {
-    throw new Error("User not found");
-  }
+  if (!user) throw new Error("User not found");
 
   return removePassword(user);
 };
 
 
 exports.updateUser = async (id, data) => {
-  if (!id || isNaN(id)) {
-    throw new Error("Invalid user id");
-  }
-
-  if (!data || Object.keys(data).length === 0) {
-    throw new Error("Request body required");
-  }
-
-  const { name, email, password } = data;
-
-  if (!name || !email || !password) {
-    throw new Error("name, email, password required");
-  }
-
-  if (password.length < 6) {
-    throw new Error("password must be at least 6 characters");
-  }
+  validateId(id);
+  validateUserData(data);
 
   const user = await User.findByPk(id);
+  if (!user) throw new Error("User not found");
 
-  if (!user) {
-    throw new Error("User not found");
-  }
+  await checkEmailExists(data.email, user.id);
 
-  const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-
-  await user.update({ name, email, password: hashedPassword });
+  const payload = await buildUpdatePayload(data);
+  await user.update(payload);
 
   return removePassword(user);
 };
 
 
 exports.patchUser = async (id, data) => {
-  if (!id || isNaN(id)) {
-    throw new Error("Invalid user id");
-  }
-
-  if (!data || Object.keys(data).length === 0) {
-    throw new Error("Request body required");
-  }
+  validateId(id);
+  validateUserData(data, true);
 
   const user = await User.findByPk(id);
+  if (!user) throw new Error("User not found");
 
-  if (!user) {
-    throw new Error("User not found");
-  }
+  await checkEmailExists(data.email, user.id);
 
-  if (data.password && data.password.length < 6) {
-    throw new Error("password must be at least 6 characters");
-  }
-
-  if (data.password) {
-    data.password = await bcrypt.hash(data.password, SALT_ROUNDS);
-  }
-
-  await user.update(data);
+  const payload = await buildUpdatePayload(data);
+  await user.update(payload);
 
   return removePassword(user);
 };
 
 
 exports.deleteUser = async (id) => {
-  if (!id || isNaN(id)) {
-    throw new Error("Invalid user id");
-  }
+  validateId(id);
 
   const user = await User.findByPk(id);
-
-  if (!user) {
-    throw new Error("User not found");
-  }
+  if (!user) throw new Error("User not found");
 
   await user.destroy();
 
