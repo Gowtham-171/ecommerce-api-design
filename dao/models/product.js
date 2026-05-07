@@ -22,9 +22,20 @@ module.exports = (sequelize, DataTypes) => {
     stock: {
       type: DataTypes.INTEGER,
       allowNull: false
+    },
+
+    categoryId: {
+      type: DataTypes.INTEGER,
+      allowNull: false
     }
 
   });
+
+  Product.associate = (models) => {
+    Product.belongsTo(models.Category, {
+      foreignKey: "categoryId"
+    });
+  };
 
   return Product;
 };
